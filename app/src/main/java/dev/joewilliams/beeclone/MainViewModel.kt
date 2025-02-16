@@ -27,7 +27,8 @@ class MainViewModel(private val resources: Resources): ViewModel() {
     private val possiblePangrams: MutableList<String> = arrayListOf()
     private var centerLetter: Char = ' '
 
-    private var ready = false
+    private val mutableReadyState: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val readyState: StateFlow<Boolean> = mutableReadyState
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -50,7 +51,9 @@ class MainViewModel(private val resources: Resources): ViewModel() {
     }
 
     fun shuffleTapped() {
-
+        viewModelScope.launch {
+            mutableCombTiles.emit(combTiles.value.shuffled())
+        }
     }
 
     fun clearTapped() {
@@ -170,6 +173,8 @@ class MainViewModel(private val resources: Resources): ViewModel() {
             dictionary[word[0]] = subdictionary
         } while (word != null)
         istream.close()
-        ready = true
+        viewModelScope.launch {
+            mutableReadyState.emit(true)
+        }
     }
 }

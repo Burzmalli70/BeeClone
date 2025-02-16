@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,7 +30,13 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
 import dev.joewilliams.beeclone.model.HexTile
@@ -44,14 +52,20 @@ class MainActivity : ComponentActivity() {
             val enteredWord by viewModel.enteredLettersState.collectAsState()
             val tiles by viewModel.combTiles.collectAsState()
             val score by viewModel.scoreState.collectAsState()
+            val ready by viewModel.readyState.collectAsState()
             BeeCloneTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Column(modifier = Modifier.padding(innerPadding)) {
+                    Column(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(innerPadding)) {
                         WordList(words = words)
                         Text("Score: $score")
-                        EnteredWord(word = enteredWord)
-                        if (tiles.size == 7) {
-                            Honeycomb(letters = tiles) {
+                        EnteredWord(word = enteredWord, centerLetter = tiles.firstOrNull { it.isCenter }?.letter)
+                        if (ready && tiles.size == 7) {
+                            Honeycomb(
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                                letters = tiles
+                            ) {
                                 viewModel.tileTapped(it)
                             }
                         }
@@ -84,9 +98,28 @@ fun WordList(
 @Composable
 fun EnteredWord(
     modifier: Modifier = Modifier,
-    word: String
+    word: String,
+    centerLetter: Char?
 ) {
-    Text(modifier = modifier, text = word)
+    val center = centerLetter ?: return
+    if (word.isNotEmpty()) {
+        Text(modifier = modifier, text = getHighlightedWord(word, center))
+    }
+}
+
+fun getHighlightedWord(word: String, centerLetter: Char): AnnotatedString {
+    return buildAnnotatedString {
+        word.forEach { char ->
+            withStyle(
+                style = SpanStyle(
+                    color = if (char == centerLetter) Color.Yellow else Color.Black,
+                    fontSize = 32.sp
+                )
+            ) {
+                append(char)
+            }
+        }
+    }
 }
 
 @Composable
@@ -97,7 +130,7 @@ fun Honeycomb(
 ) {
     if (letters.count() < 7 || !letters.any { it.isCenter }) return
     val center = letters.first { it.isCenter }
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy((HEX_SIZE / 6).dp)) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
         Column {
             Box(modifier = Modifier.size((HEX_SIZE / 4).dp))
             CombTile(tile = letters.filter { !it.isCenter }[0], onTapped = onLetterTapped)
@@ -128,9 +161,9 @@ fun CombTile(
         .drawWithCache {
             val roundedPolygon = RoundedPolygon(
                 numVertices = 6,
-                radius = HEX_SIZE,
-                centerX = HEX_SIZE / 2,
-                centerY = HEX_SIZE / 2
+                radius = HEX_SIZE * 3 / 4,
+                centerX = HEX_SIZE * 2 / 3,
+                centerY = HEX_SIZE * 2 / 3
             )
             val roundedPolygonPath = roundedPolygon
                 .toPath()
@@ -175,3 +208,23 @@ fun GameButtons(
         }
     }
 }
+
+@Preview
+@Composable
+fun HoneycombPreview() {
+    BeeCloneTheme {
+        Honeycomb(letters = PreviewTiles) {
+
+        }
+    }
+}
+
+val PreviewTiles = listOf(
+    HexTile('A', isCenter = true),
+    HexTile('P', isCenter = false),
+    HexTile('N', isCenter = false),
+    HexTile('G', isCenter = false),
+    HexTile('R', isCenter = false),
+    HexTile('M', isCenter = false),
+    HexTile('S', isCenter = false)
+)
